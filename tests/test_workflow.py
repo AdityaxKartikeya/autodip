@@ -1,6 +1,6 @@
 import unittest
 
-from autodip.workflow import run_interpretation
+from autodip.workflow import CHARTS, interpret_pad, run_interpretation
 
 
 class WorkflowTests(unittest.TestCase):
@@ -10,8 +10,8 @@ class WorkflowTests(unittest.TestCase):
             "captured_at": "2026-04-02T00:00:00Z",
             "strip": {
                 "pads": [
-                    {"index": 1, "analyte": "glucose", "color_rgb": [200, 10, 10]},
-                    {"index": 2, "analyte": "protein", "color_rgb": [10, 100, 10]},
+                    {"index": 1, "analyte": "glucose", "color_rgb": [180, 80, 25]},
+                    {"index": 2, "analyte": "protein", "color_rgb": [255, 255, 180]},
                 ]
             },
         }
@@ -21,6 +21,26 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result["overall_status"], "attention_needed")
         self.assertEqual(result["interpretations"][0]["status"], "out_of_range")
         self.assertEqual(result["interpretations"][1]["status"], "normal")
+        self.assertIn("confidence", result["interpretations"][0])
+
+    def test_reference_colors_map_to_their_own_labels(self):
+        # Exact chart colors should map back to their declared label.
+        for analyte, chart in CHARTS.items():
+            for level in chart.levels:
+                out = interpret_pad(analyte, list(level.rgb))
+                self.assertEqual(out["value"], level.label, msg=f"{analyte} @ {level.rgb}")
+
+    def test_ph_blue_green_bias_maps_to_alkaline_family(self):
+        out = interpret_pad("ph", [82, 142, 126])
+        self.assertIn(out["value"], {"high_alkaline", "slightly_alkaline"})
+
+    def test_dark_glucose_bias_not_classified_as_trace(self):
+        out = interpret_pad("glucose", [176, 82, 30])
+        self.assertIn(out["value"], {"moderate", "high", "very_high"})
+
+    def test_low_saturation_leukocyte_not_forced_high(self):
+        out = interpret_pad("leukocytes", [228, 218, 170])
+        self.assertIn(out["value"], {"negative", "trace", "slightly_high"})
 
 
 if __name__ == "__main__":
