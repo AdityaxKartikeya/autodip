@@ -35,6 +35,14 @@ class WorkflowTests(unittest.TestCase):
         out = interpret_pad("ph", [82, 142, 126])
         self.assertIn(out["value"], {"high_alkaline", "slightly_alkaline"})
 
+    def test_dark_glucose_bias_not_classified_as_trace(self):
+        out = interpret_pad("glucose", [176, 82, 30])
+        self.assertIn(out["value"], {"moderate", "high", "very_high"})
+
+    def test_low_saturation_leukocyte_not_forced_high(self):
+        out = interpret_pad("leukocytes", [228, 218, 170])
+        self.assertIn(out["value"], {"negative", "trace", "slightly_high"})
+
 
 if __name__ == "__main__":
     unittest.main()
