@@ -5,6 +5,8 @@ from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404, redirect, render
 
 from lab.bootstrap import ensure_schema
+from django.shortcuts import get_object_or_404, redirect, render
+
 from lab.forms import UploadDipTestForm
 from lab.models import DipTest
 from lab.services import process_dip_test
@@ -32,6 +34,7 @@ def dashboard(request):
         tests = []
         messages.warning(request, "Database tables are missing. Please run `python manage.py migrate`.")
 
+    tests = DipTest.objects.order_by("-created_at")[:20]
     return render(request, "lab/dashboard.html", {"form": form, "tests": tests})
 
 
