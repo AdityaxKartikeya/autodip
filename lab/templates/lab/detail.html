@@ -31,15 +31,16 @@
     {% with result=test.result_json.output %}
       {% if result and result.interpretations %}
         <table>
-          <thead><tr><th>#</th><th>Analyte</th><th>Value</th><th>Status</th><th>Signal</th></tr></thead>
+          <thead><tr><th>#</th><th>Analyte</th><th>Value</th><th>Measured</th><th>Status</th><th>Confidence</th></tr></thead>
           <tbody>
           {% for item in result.interpretations %}
             <tr>
               <td>{{ item.index }}</td>
               <td>{{ item.analyte }}</td>
               <td>{{ item.value }}</td>
+              <td>{{ item.measured_value }}</td>
               <td>{{ item.status }}</td>
-              <td>{{ item.signal }}</td>
+              <td>{{ item.confidence }}</td>
             </tr>
           {% endfor %}
           </tbody>

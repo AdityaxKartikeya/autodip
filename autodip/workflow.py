@@ -1,156 +1,206 @@
 """Core workflow for urine dip test automation.
 
-This module converts CV pad colors into analyte interpretations with
-per-analyte calibration and scale-aware outputs.
+This module interprets pad colors using a reference color chart for each analyte.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from math import sqrt
+from typing import Any, Dict, List, Sequence
 
 
 @dataclass(frozen=True)
-class AnalyteRule:
+class ReferenceLevel:
+    label: str
+    measured_value: str
+    rgb: tuple[int, int, int]
+    status: str
+
+
+@dataclass(frozen=True)
+class AnalyteChart:
     name: str
-    mode: str
-    # For binary/ordinal style pads.
-    positive_threshold: float | None = None
-    high_threshold: float | None = None
-    trace_threshold: float | None = None
-    # For scale-based pads.
-    scale_breaks: tuple[float, ...] = ()
-    scale_labels: tuple[str, ...] = ()
+    levels: Sequence[ReferenceLevel]
+    clinical_note: str
 
 
-ANALYTE_RULES: Dict[str, AnalyteRule] = {
-    "glucose": AnalyteRule("glucose", "ordinal", positive_threshold=0.26, high_threshold=0.38),
-    "protein": AnalyteRule("protein", "binary", positive_threshold=0.75),
-    "ketone": AnalyteRule("ketone", "ordinal", positive_threshold=0.25, high_threshold=0.36),
-    "blood": AnalyteRule("blood", "binary", positive_threshold=0.20),
-    "nitrite": AnalyteRule("nitrite", "binary", positive_threshold=0.18),
-    "leukocytes": AnalyteRule("leukocytes", "trace", trace_threshold=0.10, positive_threshold=0.20),
-    "bilirubin": AnalyteRule("bilirubin", "binary", positive_threshold=0.22),
-    "urobilinogen": AnalyteRule("urobilinogen", "ordinal", positive_threshold=0.20, high_threshold=0.32),
-    # scale labels correspond to <=break[0], <=break[1], >break[1]
-    "ph": AnalyteRule("ph", "scale", scale_breaks=(0.33, 0.66), scale_labels=("acidic", "neutral", "alkaline")),
-    # low/normal/high SG
-    "specific_gravity": AnalyteRule(
-        "specific_gravity",
-        "scale",
-        scale_breaks=(0.35, 0.70),
-        scale_labels=("low (1.005)", "normal (1.010-1.020)", "high (1.025+)"),
+CHARTS: Dict[str, AnalyteChart] = {
+    "glucose": AnalyteChart(
+        name="glucose",
+        clinical_note="Possible Diabetes Mellitus when persistently elevated.",
+        levels=(
+            ReferenceLevel("negative", "0 mg/dL", (245, 222, 179), "normal"),
+            ReferenceLevel("trace", "50-100 mg/dL", (235, 200, 120), "borderline"),
+            ReferenceLevel("slightly_high", "100 mg/dL", (220, 170, 60), "out_of_range"),
+            ReferenceLevel("moderate", "250 mg/dL", (205, 120, 40), "out_of_range"),
+            ReferenceLevel("high", "500 mg/dL", (180, 80, 25), "out_of_range"),
+            ReferenceLevel("very_high", ">=1000 mg/dL", (145, 45, 15), "out_of_range"),
+        ),
+    ),
+    "protein": AnalyteChart(
+        name="protein",
+        clinical_note="Persistent protein elevation may indicate kidney stress.",
+        levels=(
+            ReferenceLevel("negative", "0 mg/dL", (255, 255, 180), "normal"),
+            ReferenceLevel("trace", "10-20 mg/dL", (240, 230, 140), "borderline"),
+            ReferenceLevel("slightly_high", "30 mg/dL", (200, 180, 90), "out_of_range"),
+            ReferenceLevel("moderate", "100 mg/dL", (160, 140, 80), "out_of_range"),
+            ReferenceLevel("high", "300 mg/dL", (120, 110, 70), "out_of_range"),
+            ReferenceLevel("very_high", ">=1000 mg/dL", (80, 90, 60), "out_of_range"),
+        ),
+    ),
+    "ketone": AnalyteChart(
+        name="ketone",
+        clinical_note="Can be seen in fasting, diabetes, or ketogenic diets.",
+        levels=(
+            ReferenceLevel("negative", "0 mg/dL", (255, 235, 215), "normal"),
+            ReferenceLevel("trace", "5 mg/dL", (245, 180, 160), "borderline"),
+            ReferenceLevel("slightly_high", "15 mg/dL", (230, 120, 140), "out_of_range"),
+            ReferenceLevel("moderate", "40 mg/dL", (200, 80, 120), "out_of_range"),
+            ReferenceLevel("high", "80 mg/dL", (150, 40, 110), "out_of_range"),
+            ReferenceLevel("very_high", "160 mg/dL", (110, 20, 90), "out_of_range"),
+        ),
+    ),
+    "blood": AnalyteChart(
+        name="blood",
+        clinical_note="May indicate stones, infection, trauma, or other urinary pathology.",
+        levels=(
+            ReferenceLevel("negative", "0 RBC/uL", (255, 255, 170), "normal"),
+            ReferenceLevel("trace", "5-10 RBC/uL", (220, 200, 120), "borderline"),
+            ReferenceLevel("slightly_high", "25 RBC/uL", (180, 160, 90), "out_of_range"),
+            ReferenceLevel("moderate", "50 RBC/uL", (150, 130, 70), "out_of_range"),
+            ReferenceLevel("high", "250 RBC/uL", (120, 100, 60), "out_of_range"),
+        ),
+    ),
+    "nitrite": AnalyteChart(
+        name="nitrite",
+        clinical_note="Positive nitrite strongly suggests bacteriuria/UTI.",
+        levels=(
+            ReferenceLevel("negative", "none", (255, 240, 180), "normal"),
+            ReferenceLevel("positive", "bacteria present", (210, 90, 140), "out_of_range"),
+        ),
+    ),
+    "leukocytes": AnalyteChart(
+        name="leukocytes",
+        clinical_note="Leukocytes indicate inflammatory or infectious immune response.",
+        levels=(
+            ReferenceLevel("negative", "0 WBC/uL", (255, 250, 200), "normal"),
+            ReferenceLevel("trace", "15 WBC/uL", (230, 220, 160), "borderline"),
+            ReferenceLevel("slightly_high", "70 WBC/uL", (200, 180, 140), "out_of_range"),
+            ReferenceLevel("moderate", "125 WBC/uL", (170, 140, 130), "out_of_range"),
+            ReferenceLevel("high", "500 WBC/uL", (140, 100, 120), "out_of_range"),
+            ReferenceLevel("very_high", "500+ WBC/uL", (110, 70, 110), "out_of_range"),
+        ),
+    ),
+    "bilirubin": AnalyteChart(
+        name="bilirubin",
+        clinical_note="Elevated bilirubin may suggest hepatobiliary disease.",
+        levels=(
+            ReferenceLevel("negative", "0 mg/dL", (255, 245, 180), "normal"),
+            ReferenceLevel("slightly_high", "0.5 mg/dL", (230, 200, 100), "out_of_range"),
+            ReferenceLevel("moderate", "1 mg/dL", (200, 150, 60), "out_of_range"),
+            ReferenceLevel("high", "2 mg/dL", (170, 110, 40), "out_of_range"),
+            ReferenceLevel("very_high", "4 mg/dL", (140, 80, 20), "out_of_range"),
+        ),
+    ),
+    "urobilinogen": AnalyteChart(
+        name="urobilinogen",
+        clinical_note="Higher levels may indicate liver dysfunction or hemolysis.",
+        levels=(
+            ReferenceLevel("normal", "0.2 mg/dL", (255, 230, 170), "normal"),
+            ReferenceLevel("slightly_high", "1 mg/dL", (230, 180, 120), "out_of_range"),
+            ReferenceLevel("moderate", "2 mg/dL", (210, 140, 80), "out_of_range"),
+            ReferenceLevel("high", "4 mg/dL", (180, 100, 60), "out_of_range"),
+            ReferenceLevel("very_high", "8 mg/dL", (150, 70, 40), "out_of_range"),
+        ),
+    ),
+    "ph": AnalyteChart(
+        name="ph",
+        clinical_note="Urinary pH varies by hydration, diet, and metabolic state.",
+        levels=(
+            ReferenceLevel("low_acidic", "pH 5.0", (240, 160, 60), "out_of_range"),
+            ReferenceLevel("slightly_acidic", "pH 5.5", (230, 180, 80), "borderline"),
+            ReferenceLevel("normal", "pH 6.0", (210, 190, 90), "normal"),
+            ReferenceLevel("normal", "pH 6.5", (180, 200, 100), "normal"),
+            ReferenceLevel("normal", "pH 7.0", (140, 180, 90), "normal"),
+            ReferenceLevel("slightly_alkaline", "pH 7.5", (110, 160, 100), "borderline"),
+            ReferenceLevel("high_alkaline", "pH 8.0", (80, 140, 120), "out_of_range"),
+            ReferenceLevel("high_alkaline", "pH 8.5", (70, 120, 140), "out_of_range"),
+            ReferenceLevel("high_alkaline", "pH 9.0", (60, 100, 160), "out_of_range"),
+        ),
+    ),
+    "specific_gravity": AnalyteChart(
+        name="specific_gravity",
+        clinical_note="Specific gravity reflects hydration and renal concentrating capacity.",
+        levels=(
+            ReferenceLevel("low", "1.005", (255, 240, 200), "out_of_range"),
+            ReferenceLevel("slightly_low", "1.010", (240, 220, 170), "borderline"),
+            ReferenceLevel("normal", "1.015", (225, 200, 140), "normal"),
+            ReferenceLevel("normal", "1.020", (210, 180, 120), "normal"),
+            ReferenceLevel("slightly_high", "1.025", (190, 160, 100), "borderline"),
+            ReferenceLevel("high", "1.030", (170, 140, 80), "out_of_range"),
+        ),
     ),
 }
 
 
-def _normalized_features(rgb: List[int]) -> Dict[str, float]:
+def _chroma(rgb: Sequence[int]) -> tuple[float, float, float]:
     r, g, b = [max(0, min(255, int(v))) for v in rgb]
     total = max(r + g + b, 1)
-    maxc = max(r, g, b)
-    minc = min(r, g, b)
-    chroma = maxc - minc
-    # Chroma ratio captures pad color intensity regardless of brightness.
-    intensity = chroma / max(maxc, 1)
-
-    # Dominance score identifies "chemical color shift" rather than brightness.
-    dominant_channel = max((r, "r"), (g, "g"), (b, "b"))[1]
-    dominant_value = {"r": r, "g": g, "b": b}[dominant_channel]
-    others = [v for c, v in (("r", r), ("g", g), ("b", b)) if c != dominant_channel]
-    dominance = (dominant_value - sum(others) / 2.0) / 255.0
-
-    # Hue-like metric in [0,1]. Good enough for coarse pH/SG scale bins.
-    if chroma == 0:
-        hue = 0.0
-    elif maxc == r:
-        hue = ((g - b) / chroma) % 6
-    elif maxc == g:
-        hue = (b - r) / chroma + 2
-    else:
-        hue = (r - g) / chroma + 4
-    hue /= 6.0
-
-    return {
-        "r_ratio": r / total,
-        "g_ratio": g / total,
-        "b_ratio": b / total,
-        "dominance": max(0.0, dominance),
-        "intensity": intensity,
-        "hue": hue,
-    }
+    return r / total, g / total, b / total
 
 
-def _signal_strength(analyte: str, feats: Dict[str, float]) -> float:
-    # Per-analyte weighting to avoid one-channel brightness bias.
-    if analyte in {"glucose", "blood", "bilirubin"}:
-        return 0.55 * feats["r_ratio"] + 0.25 * feats["dominance"] + 0.20 * feats["intensity"]
-    if analyte in {"protein", "nitrite", "urobilinogen"}:
-        return 0.55 * feats["g_ratio"] + 0.25 * feats["dominance"] + 0.20 * feats["intensity"]
-    if analyte in {"ketone", "leukocytes"}:
-        return 0.55 * feats["b_ratio"] + 0.25 * feats["dominance"] + 0.20 * feats["intensity"]
-    if analyte == "ph":
-        return feats["hue"]
-    if analyte == "specific_gravity":
-        # SG tends to shift saturation/chroma more than pure hue.
-        return 0.6 * feats["intensity"] + 0.4 * feats["hue"]
-    return feats["intensity"]
+def _distance_rgb(sample: Sequence[int], target: Sequence[int]) -> float:
+    sr, sg, sb = [float(v) for v in sample]
+    tr, tg, tb = [float(v) for v in target]
+    raw = sqrt((sr - tr) ** 2 + (sg - tg) ** 2 + (sb - tb) ** 2)
+
+    sc = _chroma(sample)
+    tc = _chroma(target)
+    chroma = sqrt((sc[0] - tc[0]) ** 2 + (sc[1] - tc[1]) ** 2 + (sc[2] - tc[2]) ** 2) * 255.0
+    # Blend raw distance + normalized chroma distance for better brightness robustness.
+    return 0.6 * raw + 0.4 * chroma
 
 
 def interpret_pad(analyte: str, rgb: List[int]) -> Dict[str, Any]:
-    rule = ANALYTE_RULES.get(analyte)
-    if rule is None:
+    chart = CHARTS.get(analyte)
+    if chart is None:
         return {
             "analyte": analyte,
             "value": "unknown",
             "status": "requires_review",
-            "reason": "no_rule_configured",
+            "reason": "no_chart_configured",
         }
 
-    feats = _normalized_features(rgb)
-    signal = _signal_strength(analyte, feats)
+    ranked = sorted(
+        (
+            {
+                "level": level,
+                "distance": _distance_rgb(rgb, level.rgb),
+            }
+            for level in chart.levels
+        ),
+        key=lambda x: x["distance"],
+    )
+    best = ranked[0]
+    second = ranked[1] if len(ranked) > 1 else ranked[0]
 
-    if rule.mode == "binary":
-        is_positive = signal >= float(rule.positive_threshold)
-        return {
-            "analyte": analyte,
-            "signal": round(signal, 4),
-            "value": "positive" if is_positive else "negative",
-            "status": "out_of_range" if is_positive else "normal",
-        }
+    confidence = max(0.0, min(1.0, 1.0 - (best["distance"] / 220.0)))
+    ambiguous = (second["distance"] - best["distance"]) < 8.0
 
-    if rule.mode == "ordinal":
-        if signal >= float(rule.high_threshold):
-            return {"analyte": analyte, "signal": round(signal, 4), "value": "positive_high", "status": "out_of_range"}
-        if signal >= float(rule.positive_threshold):
-            return {"analyte": analyte, "signal": round(signal, 4), "value": "positive", "status": "out_of_range"}
-        return {"analyte": analyte, "signal": round(signal, 4), "value": "negative", "status": "normal"}
-
-    if rule.mode == "trace":
-        if signal >= float(rule.positive_threshold):
-            return {"analyte": analyte, "signal": round(signal, 4), "value": "positive", "status": "out_of_range"}
-        if signal >= float(rule.trace_threshold):
-            return {"analyte": analyte, "signal": round(signal, 4), "value": "trace_positive", "status": "borderline"}
-        return {"analyte": analyte, "signal": round(signal, 4), "value": "negative", "status": "normal"}
-
-    if rule.mode == "scale":
-        low_cut, high_cut = rule.scale_breaks
-        if signal <= low_cut:
-            value = rule.scale_labels[0]
-        elif signal <= high_cut:
-            value = rule.scale_labels[1]
-        else:
-            value = rule.scale_labels[2]
-
-        status = "normal" if "normal" in value or value == "neutral" else "out_of_range"
-        return {"analyte": analyte, "signal": round(signal, 4), "value": value, "status": status}
+    best_level = best["level"]
+    status = "borderline" if ambiguous and best_level.status == "normal" else best_level.status
 
     return {
         "analyte": analyte,
-        "signal": round(signal, 4),
-        "value": "unknown",
-        "status": "requires_review",
-        "reason": f"unsupported_mode={rule.mode}",
+        "value": best_level.label,
+        "measured_value": best_level.measured_value,
+        "status": status,
+        "confidence": round(confidence, 4),
+        "distance": round(best["distance"], 3),
+        "clinical_note": chart.clinical_note,
     }
 
 

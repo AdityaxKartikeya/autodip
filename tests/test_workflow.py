@@ -10,8 +10,8 @@ class WorkflowTests(unittest.TestCase):
             "captured_at": "2026-04-02T00:00:00Z",
             "strip": {
                 "pads": [
-                    {"index": 1, "analyte": "glucose", "color_rgb": [200, 10, 10]},
-                    {"index": 2, "analyte": "protein", "color_rgb": [10, 100, 10]},
+                    {"index": 1, "analyte": "glucose", "color_rgb": [180, 80, 25]},
+                    {"index": 2, "analyte": "protein", "color_rgb": [255, 255, 180]},
                 ]
             },
         }
@@ -20,8 +20,9 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertEqual(result["overall_status"], "attention_needed")
         self.assertEqual(result["interpretations"][0]["status"], "out_of_range")
+        self.assertEqual(result["interpretations"][0]["value"], "high")
         self.assertEqual(result["interpretations"][1]["status"], "normal")
-        self.assertIn("signal", result["interpretations"][0])
+        self.assertIn("confidence", result["interpretations"][0])
 
 
 if __name__ == "__main__":

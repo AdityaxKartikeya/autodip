@@ -63,7 +63,7 @@ def generate_report(result_payload: Dict[str, Any], output_path: str, branding: 
     for item in result_payload.get("interpretations", []):
         lines.append(
             f"- {item.get('analyte')}: {item.get('value')} "
-            f"(status={item.get('status')}, signal={item.get('signal')})"
+            f"(measured={item.get('measured_value')}, status={item.get('status')}, confidence={item.get('confidence')})"
         )
 
     path.write_bytes(_build_simple_pdf(lines))
