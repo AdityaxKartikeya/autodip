@@ -1,24 +1,55 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>DipTest #{{ test.id }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DipTest #{{ test.id }} · AutoDip</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; }
-    pre { background: #f7f7f7; padding: 12px; border-radius: 8px; overflow:auto; }
+    body { font-family: Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; max-width: 980px; margin: 28px auto; padding: 0 18px; background:#f6f7fb; color:#111827; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:18px; margin-bottom:16px; }
+    .muted { color:#6b7280; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:.82rem; font-weight:700; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { text-align:left; padding:9px 8px; border-bottom:1px solid #e5e7eb; }
+    th { color:#6b7280; font-weight:600; }
+    a { color:#2563eb; text-decoration:none; font-weight:600; }
   </style>
 </head>
 <body>
-  <h1>DipTest #{{ test.id }}</h1>
-  <p>Status: <strong>{{ test.status }}</strong></p>
-  <p>Created: {{ test.created_at }}</p>
+  <section class="card">
+    <h1 style="margin:.1rem 0">DipTest #{{ test.id }}</h1>
+    <p class="muted">Created {{ test.created_at }}</p>
+    <p>Status: <span class="pill">{{ test.status }}</span></p>
+    <p>
+      <a href="{{ test.image.url }}">Uploaded image</a>
+      {% if test.report_file %} · <a href="{{ test.report_file.url }}">Download PDF report</a>{% endif %}
+    </p>
+  </section>
 
-  <p><a href="{{ test.image.url }}">Uploaded Image</a></p>
-  {% if test.report_file %}<p><a href="{{ test.report_file.url }}">Report File</a></p>{% endif %}
+  <section class="card">
+    <h2 style="margin-top:0">Interpreted Results</h2>
+    {% with result=test.result_json.output %}
+      {% if result and result.interpretations %}
+        <table>
+          <thead><tr><th>#</th><th>Analyte</th><th>Value</th><th>Status</th><th>Signal</th></tr></thead>
+          <tbody>
+          {% for item in result.interpretations %}
+            <tr>
+              <td>{{ item.index }}</td>
+              <td>{{ item.analyte }}</td>
+              <td>{{ item.value }}</td>
+              <td>{{ item.status }}</td>
+              <td>{{ item.signal }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No parsed results available.</p>
+      {% endif %}
+    {% endwith %}
+  </section>
 
-  <h2>Result JSON</h2>
-  <pre>{{ test.result_json }}</pre>
-
-  <p><a href="/">Back to dashboard</a></p>
+  <p><a href="/">← Back to dashboard</a></p>
 </body>
 </html>
