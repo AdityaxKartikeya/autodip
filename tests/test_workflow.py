@@ -20,6 +20,7 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertEqual(result["overall_status"], "attention_needed")
         self.assertEqual(result["interpretations"][0]["status"], "out_of_range")
+        self.assertEqual(result["interpretations"][0]["value"], "high")
         self.assertEqual(result["interpretations"][1]["status"], "normal")
         self.assertIn("confidence", result["interpretations"][0])
 
