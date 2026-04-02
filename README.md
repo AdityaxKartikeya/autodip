@@ -11,6 +11,7 @@ AutoDip now includes a Django web dashboard where users can upload a urine dip-s
   3. Report generation (`autodip/report.py`)
   4. Data persistence in Django DB (`lab.models.DipTest`)
 - Django admin panel (`/admin/`) for operational review.
+- First dashboard request auto-runs migrations if DB tables are missing (still recommended to run migrate manually).
 
 ## Setup
 
