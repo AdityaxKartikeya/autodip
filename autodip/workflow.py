@@ -184,6 +184,11 @@ def _hue01(rgb: Sequence[int]) -> float:
     return h / 6.0
 
 
+def _luma(rgb: Sequence[int]) -> float:
+    r, g, b = _clamp_rgb(rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
 def _distance_rgb(sample: Sequence[int], target: Sequence[int]) -> float:
     sr, sg, sb = [float(v) for v in _clamp_rgb(sample)]
     tr, tg, tb = [float(v) for v in _clamp_rgb(target)]
@@ -220,8 +225,8 @@ def _apply_hue_blend_index(chart: AnalyteChart, rgb: Sequence[int], base_index: 
     hue_distances = [abs(sample_hue - h) for h in hues]
     hue_index = float(min(range(len(hue_distances)), key=lambda i: hue_distances[i]))
 
-    # pH gets 35% hue contribution to reduce hue-shift failures.
-    return 0.65 * base_index + 0.35 * hue_index
+    # pH gets stronger hue contribution to reduce neutral drift.
+    return 0.45 * base_index + 0.55 * hue_index
 
 
 def _chart_match(chart: AnalyteChart, rgb: Sequence[int]) -> tuple[ReferenceLevel, float, float]:
@@ -231,8 +236,27 @@ def _chart_match(chart: AnalyteChart, rgb: Sequence[int]) -> tuple[ReferenceLeve
             return level, 0.0, 999.0
 
     index_value, best_distance, margin = _soft_index(chart.levels, clamped)
-    index_value = _apply_hue_blend_index(chart, rgb, index_value)
+    index_value = _apply_hue_blend_index(chart, clamped, index_value)
     index_value += chart.index_bias
+
+    # DT trend calibration: darker pads on glucose/ketone tend to be undercalled.
+    luma = _luma(clamped)
+    if chart.name in {"glucose", "ketone"}:
+        darkness = max(0.0, min(1.0, (220.0 - luma) / 130.0))
+        index_value += 0.9 * darkness
+
+    # Leukocyte tends to overcall on low-saturation beige transitions.
+    if chart.name == "leukocytes":
+        cr, cg, cb = _chroma(clamped)
+        sat_proxy = max(cr, cg, cb) - min(cr, cg, cb)
+        if sat_proxy < 0.12:
+            index_value -= 0.6
+
+    # Additional pH anti-neutral-bias when blue+green dominate red.
+    if chart.name == "ph":
+        r, g, b = clamped
+        if g > r and b > r:
+            index_value += 0.8
 
     idx = int(round(index_value))
     idx = max(0, min(len(chart.levels) - 1, idx))

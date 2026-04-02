@@ -1,0 +1,452 @@
+[
+  {
+    "analyte": "glucose",
+    "rgb": [
+      240,
+      214,
+      179
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "glucose",
+    "rgb": [
+      234,
+      199,
+      116
+    ],
+    "label": "trace"
+  },
+  {
+    "analyte": "glucose",
+    "rgb": [
+      200,
+      114,
+      45
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "glucose",
+    "rgb": [
+      173,
+      72,
+      19
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "glucose",
+    "rgb": [
+      143,
+      44,
+      23
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "protein",
+    "rgb": [
+      247,
+      253,
+      185
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "protein",
+    "rgb": [
+      239,
+      236,
+      140
+    ],
+    "label": "trace"
+  },
+  {
+    "analyte": "protein",
+    "rgb": [
+      152,
+      137,
+      85
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "protein",
+    "rgb": [
+      122,
+      110,
+      66
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "protein",
+    "rgb": [
+      78,
+      92,
+      55
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "ketone",
+    "rgb": [
+      249,
+      239,
+      210
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "ketone",
+    "rgb": [
+      248,
+      183,
+      160
+    ],
+    "label": "trace"
+  },
+  {
+    "analyte": "ketone",
+    "rgb": [
+      193,
+      86,
+      115
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "ketone",
+    "rgb": [
+      154,
+      34,
+      111
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "ketone",
+    "rgb": [
+      113,
+      18,
+      84
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "blood",
+    "rgb": [
+      248,
+      254,
+      171
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "blood",
+    "rgb": [
+      214,
+      199,
+      115
+    ],
+    "label": "trace"
+  },
+  {
+    "analyte": "blood",
+    "rgb": [
+      184,
+      160,
+      96
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "blood",
+    "rgb": [
+      153,
+      127,
+      73
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "blood",
+    "rgb": [
+      123,
+      98,
+      60
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "nitrite",
+    "rgb": [
+      249,
+      237,
+      179
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "nitrite",
+    "rgb": [
+      207,
+      96,
+      144
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "nitrite",
+    "rgb": [
+      210,
+      89,
+      142
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "nitrite",
+    "rgb": [
+      203,
+      89,
+      133
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "nitrite",
+    "rgb": [
+      212,
+      94,
+      140
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "leukocytes",
+    "rgb": [
+      249,
+      248,
+      202
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "leukocytes",
+    "rgb": [
+      228,
+      227,
+      164
+    ],
+    "label": "trace"
+  },
+  {
+    "analyte": "leukocytes",
+    "rgb": [
+      176,
+      136,
+      130
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "leukocytes",
+    "rgb": [
+      136,
+      99,
+      120
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "leukocytes",
+    "rgb": [
+      115,
+      74,
+      113
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "bilirubin",
+    "rgb": [
+      254,
+      241,
+      188
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "bilirubin",
+    "rgb": [
+      237,
+      194,
+      93
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "bilirubin",
+    "rgb": [
+      195,
+      146,
+      57
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "bilirubin",
+    "rgb": [
+      175,
+      104,
+      44
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "bilirubin",
+    "rgb": [
+      144,
+      86,
+      28
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "urobilinogen",
+    "rgb": [
+      255,
+      222,
+      165
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "urobilinogen",
+    "rgb": [
+      230,
+      182,
+      115
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "urobilinogen",
+    "rgb": [
+      211,
+      145,
+      77
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "urobilinogen",
+    "rgb": [
+      186,
+      92,
+      60
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "urobilinogen",
+    "rgb": [
+      158,
+      67,
+      48
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "ph",
+    "rgb": [
+      235,
+      161,
+      68
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "ph",
+    "rgb": [
+      208,
+      186,
+      93
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "ph",
+    "rgb": [
+      137,
+      188,
+      82
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "ph",
+    "rgb": [
+      82,
+      147,
+      112
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "ph",
+    "rgb": [
+      55,
+      103,
+      161
+    ],
+    "label": "high"
+  },
+  {
+    "analyte": "specific_gravity",
+    "rgb": [
+      254,
+      233,
+      199
+    ],
+    "label": "moderate"
+  },
+  {
+    "analyte": "specific_gravity",
+    "rgb": [
+      234,
+      214,
+      177
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "specific_gravity",
+    "rgb": [
+      204,
+      176,
+      116
+    ],
+    "label": "negative"
+  },
+  {
+    "analyte": "specific_gravity",
+    "rgb": [
+      197,
+      157,
+      100
+    ],
+    "label": "slightly_high"
+  },
+  {
+    "analyte": "specific_gravity",
+    "rgb": [
+      178,
+      145,
+      78
+    ],
+    "label": "high"
+  }
+]

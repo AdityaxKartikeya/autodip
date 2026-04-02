@@ -32,3 +32,31 @@ Open:
 - Interpretation now maps pad RGB to analyte-specific reference color charts (including pH and specific gravity scales).
 - Report generation now emits a real downloadable PDF file (without third-party PDF deps).
 - Dashboard upload has a drag-and-drop dropzone for faster workflow.
+
+
+## ML Classifier (scikit-learn)
+
+A simple per-analyte ML classifier is available in `autodip/ml_classifier.py`.
+
+Features used per sample:
+- RGB: `R, G, B`
+- HSV: `H, S, V`
+- Ratios: `R/G, R/B, G/B`
+- Brightness
+
+Training sample format (`sample_training_data.json`):
+
+```json
+[
+  {"analyte": "glucose", "rgb": [245, 222, 179], "label": "negative"},
+  {"analyte": "glucose", "rgb": [220, 170, 60], "label": "slightly_high"}
+]
+```
+
+Run:
+
+```bash
+python -m autodip.ml_classifier sample_training_data.json random_forest
+```
+
+This prints per-analyte accuracy and confusion matrix, and an example prediction with confidence.

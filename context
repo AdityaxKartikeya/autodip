@@ -1,0 +1,137 @@
+AutoDip Project Context
+=======================
+
+Overview
+--------
+AutoDip is a Django-based application and Python toolkit for automated urine dipstick analysis.
+It currently supports:
+1) Image upload and processing via web dashboard.
+2) CV-style pad extraction (heuristic segmentation).
+3) Rule/chart-based analyte interpretation for 10 dipstick pads.
+4) Report generation as downloadable PDF.
+5) Data persistence in Django models/admin.
+6) Experimental per-analyte machine-learning classifiers with scikit-learn.
+
+Repository Structure
+--------------------
+- `autodip/`
+  - `cv.py`: extracts pad-level RGB data from strip images.
+  - `workflow.py`: interprets extracted pad colors into medical levels.
+  - `report.py`: creates a single-page PDF report.
+  - `ml_classifier.py`: scikit-learn utilities for per-analyte model training/eval/prediction.
+  - `cli.py`: project CLI entrypoints (if used externally).
+- `lab/` (Django app)
+  - `models.py`: stores uploaded tests/results/report path.
+  - `views.py`: dashboard and detail pages.
+  - `services.py`: orchestrates extract -> interpret -> report -> save.
+  - `forms.py`: upload form config.
+  - `templates/lab/dashboard.html`: upload UI + recent tests.
+  - `templates/lab/detail.html`: per-test result details.
+- `autodip_project/`: Django project settings/urls/wsgi/asgi.
+- `tests/`: workflow and dashboard tests.
+- `sample_training_data.json`: sample ML training set.
+
+Current End-to-End Flow
+-----------------------
+1. User uploads an image on `/` dashboard.
+2. `lab.services.process_dip_test` runs:
+   - `autodip.cv.extract_cv_payload` -> obtains 10 pad RGB values.
+   - `autodip.workflow.run_interpretation` -> maps RGB to analyte levels/statuses.
+   - `autodip.report.generate_report` -> writes PDF summary.
+   - Persists status/results/report on `DipTest`.
+3. User opens detail page `/tests/<id>/` to review results and download PDF.
+
+Analytes Covered
+----------------
+The 10-pad workflow supports:
+- glucose
+- protein
+- ketone
+- blood
+- nitrite
+- leukocytes
+- bilirubin
+- urobilinogen
+- ph
+- specific_gravity
+
+Interpretation Strategy (Current)
+---------------------------------
+`autodip/workflow.py` uses analyte-specific color reference charts (`CHARTS`) and
+matching utilities to assign classes, confidence, and metadata.
+Outputs include fields like:
+- `value`
+- `measured_value`
+- `status`
+- `confidence`
+- `distance`
+- `clinical_note`
+
+ML Classifier Module (Experimental)
+-----------------------------------
+`autodip/ml_classifier.py` provides a simple, separate ML path:
+- One model per analyte.
+- Feature set includes:
+  - RGB channels
+  - HSV channels
+  - RGB ratios (R/G, R/B, G/B)
+  - brightness
+- Supported algorithms:
+  - random_forest
+  - svm
+  - logistic_regression
+- Main functions:
+  - `rgb_to_hsv(rgb)`
+  - `extract_features(rgb)`
+  - `train_analyte_models(samples, algorithm=...)`
+  - `evaluate_models(samples, algorithm=...)`
+  - `predict_level(models, analyte, rgb)`
+
+Data Format for ML
+------------------
+Sample records use:
+{
+  "analyte": "glucose",
+  "rgb": [245, 222, 179],
+  "label": "negative"
+}
+
+`sample_training_data.json` includes 50 synthetic-style samples (5 per analyte)
+for quick experimentation.
+
+Tests
+-----
+Primary tests currently in repo:
+- `tests/test_dashboard.py`
+  - validates upload flow and PDF artifact generation.
+- `tests/test_workflow.py`
+  - validates interpretation behavior and selected calibration cases.
+
+How to Run Locally
+------------------
+Setup:
+- `python -m pip install -r requirements.txt`
+- `python manage.py migrate`
+- `python manage.py runserver`
+
+Run tests:
+- `python manage.py test tests.test_workflow tests.test_dashboard -v 2`
+
+Run ML demo:
+- `python -m autodip.ml_classifier sample_training_data.json random_forest`
+
+Known Constraints / Notes
+-------------------------
+- CV pad extraction in `autodip/cv.py` is heuristic and not camera-robust.
+- Chart-based mapping can still be sensitive to lighting, white balance,
+  and strip manufacturer color variance.
+- ML module is intended for iterative improvement and requires real labeled data
+  for strong generalization and reliable >90% production accuracy.
+
+Suggested Next Steps
+--------------------
+1. Add color calibration card / white-balance normalization in CV stage.
+2. Collect labeled real-strip dataset per analyte and concentration level.
+3. Add k-fold validation and model persistence (`joblib`) for ML path.
+4. Add per-analyte confusion dashboards in Django admin/report.
+5. Introduce uncertainty thresholding + review flag for low-confidence pads.
