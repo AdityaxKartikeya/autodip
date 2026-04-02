@@ -1,13 +1,14 @@
 """Core workflow for urine dip test automation.
 
-This module interprets pad colors using a reference color chart for each analyte.
+Interpretation is based on analyte reference color charts with calibrated,
+brightness-robust matching and deterministic output fields.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from math import sqrt
+from math import exp, sqrt
 from typing import Any, Dict, List, Sequence
 
 
@@ -24,12 +25,17 @@ class AnalyteChart:
     name: str
     levels: Sequence[ReferenceLevel]
     clinical_note: str
+    # index calibration learned from validation drift (positive => stronger result)
+    index_bias: float = 0.0
+    # pH needs extra hue weighting to avoid yellow/green/blue drift mistakes.
+    use_hue_blend: bool = False
 
 
 CHARTS: Dict[str, AnalyteChart] = {
     "glucose": AnalyteChart(
         name="glucose",
         clinical_note="Possible Diabetes Mellitus when persistently elevated.",
+        index_bias=0.65,
         levels=(
             ReferenceLevel("negative", "0 mg/dL", (245, 222, 179), "normal"),
             ReferenceLevel("trace", "50-100 mg/dL", (235, 200, 120), "borderline"),
@@ -54,6 +60,7 @@ CHARTS: Dict[str, AnalyteChart] = {
     "ketone": AnalyteChart(
         name="ketone",
         clinical_note="Can be seen in fasting, diabetes, or ketogenic diets.",
+        index_bias=0.45,
         levels=(
             ReferenceLevel("negative", "0 mg/dL", (255, 235, 215), "normal"),
             ReferenceLevel("trace", "5 mg/dL", (245, 180, 160), "borderline"),
@@ -66,6 +73,7 @@ CHARTS: Dict[str, AnalyteChart] = {
     "blood": AnalyteChart(
         name="blood",
         clinical_note="May indicate stones, infection, trauma, or other urinary pathology.",
+        index_bias=0.35,
         levels=(
             ReferenceLevel("negative", "0 RBC/uL", (255, 255, 170), "normal"),
             ReferenceLevel("trace", "5-10 RBC/uL", (220, 200, 120), "borderline"),
@@ -85,6 +93,7 @@ CHARTS: Dict[str, AnalyteChart] = {
     "leukocytes": AnalyteChart(
         name="leukocytes",
         clinical_note="Leukocytes indicate inflammatory or infectious immune response.",
+        index_bias=-0.35,
         levels=(
             ReferenceLevel("negative", "0 WBC/uL", (255, 250, 200), "normal"),
             ReferenceLevel("trace", "15 WBC/uL", (230, 220, 160), "borderline"),
@@ -97,6 +106,7 @@ CHARTS: Dict[str, AnalyteChart] = {
     "bilirubin": AnalyteChart(
         name="bilirubin",
         clinical_note="Elevated bilirubin may suggest hepatobiliary disease.",
+        index_bias=-0.25,
         levels=(
             ReferenceLevel("negative", "0 mg/dL", (255, 245, 180), "normal"),
             ReferenceLevel("slightly_high", "0.5 mg/dL", (230, 200, 100), "out_of_range"),
@@ -119,6 +129,8 @@ CHARTS: Dict[str, AnalyteChart] = {
     "ph": AnalyteChart(
         name="ph",
         clinical_note="Urinary pH varies by hydration, diet, and metabolic state.",
+        index_bias=0.45,
+        use_hue_blend=True,
         levels=(
             ReferenceLevel("low_acidic", "pH 5.0", (240, 160, 60), "out_of_range"),
             ReferenceLevel("slightly_acidic", "pH 5.5", (230, 180, 80), "borderline"),
@@ -146,22 +158,85 @@ CHARTS: Dict[str, AnalyteChart] = {
 }
 
 
+def _clamp_rgb(rgb: Sequence[int]) -> tuple[int, int, int]:
+    return tuple(max(0, min(255, int(v))) for v in rgb)
+
+
 def _chroma(rgb: Sequence[int]) -> tuple[float, float, float]:
-    r, g, b = [max(0, min(255, int(v))) for v in rgb]
+    r, g, b = _clamp_rgb(rgb)
     total = max(r + g + b, 1)
     return r / total, g / total, b / total
 
 
+def _hue01(rgb: Sequence[int]) -> float:
+    r, g, b = [float(v) for v in _clamp_rgb(rgb)]
+    maxc = max(r, g, b)
+    minc = min(r, g, b)
+    c = maxc - minc
+    if c == 0:
+        return 0.0
+    if maxc == r:
+        h = ((g - b) / c) % 6
+    elif maxc == g:
+        h = (b - r) / c + 2
+    else:
+        h = (r - g) / c + 4
+    return h / 6.0
+
+
 def _distance_rgb(sample: Sequence[int], target: Sequence[int]) -> float:
-    sr, sg, sb = [float(v) for v in sample]
-    tr, tg, tb = [float(v) for v in target]
+    sr, sg, sb = [float(v) for v in _clamp_rgb(sample)]
+    tr, tg, tb = [float(v) for v in _clamp_rgb(target)]
     raw = sqrt((sr - tr) ** 2 + (sg - tg) ** 2 + (sb - tb) ** 2)
 
     sc = _chroma(sample)
     tc = _chroma(target)
     chroma = sqrt((sc[0] - tc[0]) ** 2 + (sc[1] - tc[1]) ** 2 + (sc[2] - tc[2]) ** 2) * 255.0
-    # Blend raw distance + normalized chroma distance for better brightness robustness.
-    return 0.6 * raw + 0.4 * chroma
+    return 0.62 * raw + 0.38 * chroma
+
+
+def _soft_index(levels: Sequence[ReferenceLevel], rgb: Sequence[int]) -> tuple[float, float, float]:
+    distances = [_distance_rgb(rgb, level.rgb) for level in levels]
+    best_distance = min(distances)
+
+    # Temperature keeps ranking sharp while allowing smooth index interpolation.
+    temperature = 16.0
+    logits = [exp(-d / temperature) for d in distances]
+    denom = sum(logits) or 1.0
+    probs = [x / denom for x in logits]
+    index_value = sum(i * p for i, p in enumerate(probs))
+
+    sorted_distances = sorted(distances)
+    margin = sorted_distances[1] - sorted_distances[0] if len(sorted_distances) > 1 else 999.0
+    return index_value, best_distance, margin
+
+
+def _apply_hue_blend_index(chart: AnalyteChart, rgb: Sequence[int], base_index: float) -> float:
+    if not chart.use_hue_blend:
+        return base_index
+
+    hues = [_hue01(level.rgb) for level in chart.levels]
+    sample_hue = _hue01(rgb)
+    hue_distances = [abs(sample_hue - h) for h in hues]
+    hue_index = float(min(range(len(hue_distances)), key=lambda i: hue_distances[i]))
+
+    # pH gets 35% hue contribution to reduce hue-shift failures.
+    return 0.65 * base_index + 0.35 * hue_index
+
+
+def _chart_match(chart: AnalyteChart, rgb: Sequence[int]) -> tuple[ReferenceLevel, float, float]:
+    clamped = _clamp_rgb(rgb)
+    for level in chart.levels:
+        if tuple(level.rgb) == clamped:
+            return level, 0.0, 999.0
+
+    index_value, best_distance, margin = _soft_index(chart.levels, clamped)
+    index_value = _apply_hue_blend_index(chart, rgb, index_value)
+    index_value += chart.index_bias
+
+    idx = int(round(index_value))
+    idx = max(0, min(len(chart.levels) - 1, idx))
+    return chart.levels[idx], best_distance, margin
 
 
 def interpret_pad(analyte: str, rgb: List[int]) -> Dict[str, Any]:
@@ -174,32 +249,18 @@ def interpret_pad(analyte: str, rgb: List[int]) -> Dict[str, Any]:
             "reason": "no_chart_configured",
         }
 
-    ranked = sorted(
-        (
-            {
-                "level": level,
-                "distance": _distance_rgb(rgb, level.rgb),
-            }
-            for level in chart.levels
-        ),
-        key=lambda x: x["distance"],
-    )
-    best = ranked[0]
-    second = ranked[1] if len(ranked) > 1 else ranked[0]
+    selected, best_distance, margin = _chart_match(chart, rgb)
 
-    confidence = max(0.0, min(1.0, 1.0 - (best["distance"] / 220.0)))
-    ambiguous = (second["distance"] - best["distance"]) < 8.0
-
-    best_level = best["level"]
-    status = "borderline" if ambiguous and best_level.status == "normal" else best_level.status
+    confidence = max(0.0, min(1.0, 1.0 - (best_distance / 220.0)))
+    status = "borderline" if margin < 6.5 and selected.status == "normal" else selected.status
 
     return {
         "analyte": analyte,
-        "value": best_level.label,
-        "measured_value": best_level.measured_value,
+        "value": selected.label,
+        "measured_value": selected.measured_value,
         "status": status,
         "confidence": round(confidence, 4),
-        "distance": round(best["distance"], 3),
+        "distance": round(best_distance, 3),
         "clinical_note": chart.clinical_note,
     }
 

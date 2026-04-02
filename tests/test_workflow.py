@@ -1,6 +1,6 @@
 import unittest
 
-from autodip.workflow import run_interpretation
+from autodip.workflow import CHARTS, interpret_pad, run_interpretation
 
 
 class WorkflowTests(unittest.TestCase):
@@ -23,6 +23,17 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result["interpretations"][0]["value"], "high")
         self.assertEqual(result["interpretations"][1]["status"], "normal")
         self.assertIn("confidence", result["interpretations"][0])
+
+    def test_reference_colors_map_to_their_own_labels(self):
+        # Exact chart colors should map back to their declared label.
+        for analyte, chart in CHARTS.items():
+            for level in chart.levels:
+                out = interpret_pad(analyte, list(level.rgb))
+                self.assertEqual(out["value"], level.label, msg=f"{analyte} @ {level.rgb}")
+
+    def test_ph_blue_green_bias_maps_to_alkaline_family(self):
+        out = interpret_pad("ph", [82, 142, 126])
+        self.assertIn(out["value"], {"high_alkaline", "slightly_alkaline"})
 
 
 if __name__ == "__main__":
