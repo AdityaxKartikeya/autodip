@@ -1,0 +1,13 @@
+{
+  "test_id": "UDT-2026-000123",
+  "captured_at": "2026-04-02T10:30:00Z",
+  "strip": {
+    "pad_count": 10,
+    "pads": [
+      {"index": 1, "analyte": "glucose", "bbox": {"x": 120, "y": 80, "w": 42, "h": 25}, "color_rgb": [115, 150, 98]},
+      {"index": 2, "analyte": "protein", "bbox": {"x": 120, "y": 110, "w": 42, "h": 25}, "color_rgb": [100, 121, 98]},
+      {"index": 3, "analyte": "ketone", "bbox": {"x": 120, "y": 140, "w": 42, "h": 25}, "color_rgb": [100, 110, 120]},
+      {"index": 4, "analyte": "blood", "bbox": {"x": 120, "y": 170, "w": 42, "h": 25}, "color_rgb": [160, 110, 120]}
+    ]
+  }
+}
