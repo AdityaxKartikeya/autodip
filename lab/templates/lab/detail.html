@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DipTest #{{ test.id }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; }
+    pre { background: #f7f7f7; padding: 12px; border-radius: 8px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>DipTest #{{ test.id }}</h1>
+  <p>Status: <strong>{{ test.status }}</strong></p>
+  <p>Created: {{ test.created_at }}</p>
+
+  <p><a href="{{ test.image.url }}">Uploaded Image</a></p>
+  {% if test.report_file %}<p><a href="{{ test.report_file.url }}">Report File</a></p>{% endif %}
+
+  <h2>Result JSON</h2>
+  <pre>{{ test.result_json }}</pre>
+
+  <p><a href="/">Back to dashboard</a></p>
+</body>
+</html>
