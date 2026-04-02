@@ -28,3 +28,4 @@ class DashboardFlowTests(TestCase):
         self.assertEqual(record.status, "completed")
         self.assertIn("output", record.result_json)
         self.assertTrue(bool(record.report_file))
+        self.assertTrue(record.report_file.read().startswith(b"%PDF-"))

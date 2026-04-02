@@ -29,4 +29,6 @@ Open:
 ## Notes
 
 - Current CV extractor is an initial heuristic (center-strip segmentation into 10 pads).
-- Report generation currently writes text content to a `.pdf` filename placeholder for later PDF-engine integration.
+- Interpretation now maps pad RGB to analyte-specific reference color charts (including pH and specific gravity scales).
+- Report generation now emits a real downloadable PDF file (without third-party PDF deps).
+- Dashboard upload has a drag-and-drop dropzone for faster workflow.
